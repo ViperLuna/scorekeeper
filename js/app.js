@@ -495,6 +495,7 @@
   // ------------------------------------------------------------------- editor
   const TEMPLATES = {
     'Simple counter': { buttons: [{ label: '+1', points: 1 }, { label: '−1', points: -1 }], direction: 'high', target: null, winBy: 0, tie: 'continue' },
+    'Bottle Flip': { buttons: [{ label: '+1', points: 1 }, { label: '−1', points: -1 }, { label: 'LINE', points: 0, stat: 'Line' }], direction: 'high', target: null, winBy: 0, tie: 'continue' },
     'Race to 11, win by 2': { buttons: [{ label: '+1', points: 1 }, { label: '−1', points: -1 }], direction: 'high', target: 11, winBy: 2, tie: 'continue' },
     'Euchre (first to 10)': { buttons: [{ label: '+1', points: 1 }, { label: '+2', points: 2 }, { label: '+4', points: 4 }, { label: '−1', points: -1 }], direction: 'high', target: 10, winBy: 0, tie: 'continue' },
     'Uno (lowest wins, 500 limit)': { buttons: [{ label: '+10', points: 10 }, { label: '+25', points: 25 }, { label: '+50', points: 50 }, { label: '+100', points: 100 }, { label: '−10', points: -10 }], direction: 'low', target: 500, winBy: 0, tie: 'continue' },
