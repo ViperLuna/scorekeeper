@@ -548,7 +548,52 @@
         h('div', { class: 'row2' }, tpl, h('button', {
           class: 'btn',
           onclick: () => renderEditForm({ id: null, name: tpl.value && tpl.value.split(' (')[0].split(',')[0] || '', config: TEMPLATES[tpl.value] || L.DEFAULT_CONFIG }),
-        }, 'New game')))));
+        }, 'New game')),
+        h('button', { class: 'btn ghost', onclick: renderPlayersAdmin }, 'Manage players'))));
+  }
+
+  async function renderPlayersAdmin() {
+    let players;
+    try { players = await api.listPlayers(); } catch (e) { return fail(e); }
+    const afterError = (err) => {
+      fail(err);
+      if (/wrong pin/i.test(err.message)) { S.pin = null; renderEditorGate(); }
+    };
+    show('editor', h('main', { class: 'page narrow' },
+      h('div', { class: 'phead' }, h('button', { class: 'btn ghost small', onclick: renderEditor }, '← Back'), h('h1', {}, 'Players')),
+      h('div', { class: 'stack' },
+        players.length ? players.map((p) => h('div', { class: 'lrow' },
+          h('span', { class: 'rname' }, p.name),
+          h('button', {
+            class: 'btn small',
+            onclick: () => {
+              const input = h('input', { class: 'input', value: p.name, maxlength: '24' });
+              modal((close) => h('div', { class: 'mbody' },
+                h('h2', {}, 'Rename player'), input,
+                h('div', { class: 'mrow' },
+                  h('button', { class: 'btn ghost', onclick: close }, 'Cancel'),
+                  h('button', {
+                    class: 'btn',
+                    onclick: async () => {
+                      const name = input.value.trim();
+                      if (!name) return toast('Name can’t be empty');
+                      try { await api.renamePlayer(S.pin, p.id, name); close(); renderPlayersAdmin(); } catch (err) { afterError(err); }
+                    },
+                  }, 'Save'))));
+            },
+          }, 'Rename'),
+          h('button', {
+            class: 'btn ghost small',
+            onclick: async () => {
+              const ok = await confirmDialog({
+                title: 'Delete ' + p.name + '?',
+                message: 'Their profile is removed and they leave any live games. Saved results keep the old name, so past stats history stays intact.',
+                ok: 'Delete',
+              });
+              if (!ok) return;
+              try { await api.deletePlayer(S.pin, p.id); renderPlayersAdmin(); } catch (err) { afterError(err); }
+            },
+          }, 'Delete'))) : h('p', { class: 'muted' }, 'No players yet. They’re created automatically when you add a name to a game.'))));
   }
 
   function renderEditForm(t) {

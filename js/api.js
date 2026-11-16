@@ -39,6 +39,12 @@
     async listPlayers() {
       return unwrap(await sb.from('sk_players').select('id,name').order('name'));
     },
+    async renamePlayer(pin, id, name) {
+      unwrap(await sb.rpc('sk_rename_player', { p_pin: pin, p_id: id, p_name: name }));
+    },
+    async deletePlayer(pin, id) {
+      unwrap(await sb.rpc('sk_delete_player', { p_pin: pin, p_id: id }));
+    },
     async findOrCreatePlayer(name) {
       name = name.trim();
       const key = name.toLowerCase();
