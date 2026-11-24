@@ -252,8 +252,25 @@
       bar, h('div', { class: 'rotate-hint' }, 'Turn your phone sideways for the best view'),
       banner || hint || null, body, done || null));
     S.view = 'game';
+    fitSides();
     S.hooks.forEach((fn) => fn());
   }
+
+  /* One column of buttons wherever it fits (buttons stay >= 44px tall).
+     Only when it can't, spill into a second column that grows inward. */
+  const MIN_BTN = 44, GAP = 6;
+  function fitSides() {
+    document.querySelectorAll('.panel').forEach((panel) => {
+      const side = panel.querySelector('.side');
+      if (!side) return;
+      const n = side.children.length;
+      const avail = panel.clientHeight - 12;
+      const perCol = Math.max(1, Math.floor((avail + GAP) / (MIN_BTN + GAP)));
+      const cols = Math.ceil(n / perCol);
+      side.style.setProperty('--rows', Math.ceil(n / cols));
+    });
+  }
+  window.addEventListener('resize', () => { if (S.game) fitSides(); });
 
   function panel(u, t, cfg, winners, finished, side) {
     const counters = Object.entries(t.counters);
@@ -261,7 +278,7 @@
 
     // One column of buttons on the outer edge of the panel: left-hand panels put
     // it on the far left, right-hand panels on the far right.
-    const column = h('div', { class: 'side' },
+    const column = h('div', { class: 'side', style: `--rows:${cfg.buttons.length}` },
       cfg.buttons.map((b) => h('button', {
         class: 'sbtn', disabled: !live,
         onclick: () => tap(u, b),
