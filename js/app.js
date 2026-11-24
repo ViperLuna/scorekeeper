@@ -256,22 +256,35 @@
   }
 
   function panel(u, t, cfg, winners, finished) {
-    const n = cfg.buttons.length;
-    const bc = n <= 2 ? n : n <= 4 ? 2 : 3;
     const counters = Object.entries(t.counters);
     const live = u.members.length > 0 && !finished;
+
+    // Negative buttons on the left, the rest on the right. If that leaves one
+    // side empty, split the list in half so neither side is crowded.
+    let left = cfg.buttons.filter((b) => b.points < 0);
+    let right = cfg.buttons.filter((b) => b.points >= 0);
+    if (!left.length || !right.length) {
+      const all = cfg.buttons;
+      const mid = Math.ceil(all.length / 2);
+      left = all.slice(0, mid);
+      right = all.slice(mid);
+    }
+    const column = (list, cls) => h('div', { class: 'side ' + cls },
+      list.map((b) => h('button', {
+        class: 'sbtn', disabled: !live,
+        onclick: () => tap(u, b),
+      }, b.label || sign(b.points))));
+
     return h('section', { class: 'panel' + (winners.has(u.key) ? ' winner' : '') },
-      h('div', { class: 'pname' }, u.name),
-      S.game.teams > 0 && h('div', { class: 'members' }, u.members.length ? u.members.map((m) => m.name).join(', ') : 'no players yet'),
-      h('div', { class: 'score' }, fmt(t.score)),
-      h('div', { class: 'counters' },
-        counters.map(([k, v]) => h('span', {}, k + ' ' + v)),
-        t.attempts > 0 && counters.length > 0 ? h('span', {}, 'of ' + t.attempts) : null),
-      h('div', { class: 'btns', style: `--bcols:${bc}` },
-        cfg.buttons.map((b) => h('button', {
-          class: 'sbtn', disabled: !live,
-          onclick: () => tap(u, b),
-        }, b.label || sign(b.points)))));
+      column(left, 'left'),
+      h('div', { class: 'mid' },
+        h('div', { class: 'pname' }, u.name),
+        S.game.teams > 0 && h('div', { class: 'members' }, u.members.length ? u.members.map((m) => m.name).join(', ') : 'no players yet'),
+        h('div', { class: 'score' }, fmt(t.score)),
+        h('div', { class: 'counters' },
+          counters.map(([k, v]) => h('span', {}, k + ' ' + v)),
+          t.attempts > 0 && counters.length > 0 ? h('span', {}, 'of ' + t.attempts) : null)),
+      column(right, 'right'));
   }
 
   function fsButton() {
