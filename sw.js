@@ -1,7 +1,7 @@
 // Network-first service worker: always tries for the freshest files, and falls
 // back to the cache when offline so the app shell still opens.
-const CACHE = 'scorekeeper-v1';
-const SHELL = ['./', 'index.html', 'style.css', 'js/config.js', 'js/logic.js', 'js/api.js', 'js/app.js', 'manifest.webmanifest', 'icons/icon.svg'];
+const CACHE = 'scorekeeper-v2';
+const SHELL = ['./', 'index.html', 'style.css', 'js/config.js', 'js/logic.js', 'js/api.js', 'js/fx.js', 'js/app.js', 'manifest.webmanifest', 'icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

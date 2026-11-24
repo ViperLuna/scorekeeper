@@ -155,7 +155,8 @@
   function leaveGame(quiet) {
     if (S.unsub) { try { S.unsub(); } catch (e) { /* ignore */ } }
     clearInterval(S.poll); clearTimeout(S.refreshTimer);
-    S.unsub = null; S.poll = null; S.game = null; S.players = []; S.events = []; S.hooks = [];
+    S.unsub = null; S.poll = null; S.game = null; S.players = []; S.events = []; S.hooks = []; S.lastSig = null;
+    if (window.SKFX) window.SKFX.reset();
     if (!quiet) renderHome();
   }
 
@@ -210,10 +211,34 @@
     const grid = gridFor(units.length);
     const winners = new Set(finished || auto.over ? (auto.over ? auto : L.evaluate(cfg, rows, true)).winners : []);
 
+    // Who is ahead (nobody while everyone is level).
+    let leaders = new Set();
+    if (rows.length >= 2) {
+      const scores = rows.map((r) => r.score);
+      const best = cfg.direction === 'low' ? Math.min(...scores) : Math.max(...scores);
+      const tops = rows.filter((r) => r.score === best);
+      if (tops.length < rows.length) leaders = new Set(tops.map((r) => r.key));
+    }
+
+    const runFx = () => window.SKFX && window.SKFX.run({
+      key: g.id + ':' + g.epoch, game: g, units, rows, events: S.events, auto, finished,
+    });
+
+    // Only rebuild the screen when something you can see changed. That keeps
+    // animations running and stops flicker when a sync arrives with no changes.
+    const sig = JSON.stringify([
+      g.code, g.game_name, g.status, g.practice, g.epoch, g.teams,
+      units.map((u) => [u.key, u.name, u.members.map((m) => m.name)]), totals, cfg.buttons,
+      canUndo, canRedo, auto.over, auto.draw, auto.winners, auto.message, [...leaders],
+    ]);
+    if (sig === S.lastSig && document.getElementById('game')) { runFx(); return; }
+    S.lastSig = sig;
+
     const bar = h('header', { class: 'topbar' },
       h('div', { class: 'tl' },
         h('button', { class: 'chip', onclick: () => { navigator.clipboard && navigator.clipboard.writeText(g.code); toast('Code ' + g.code + ' copied'); }, title: 'Tap to copy' }, g.code),
-        h('span', { class: 'gname' }, g.game_name)),
+        h('span', { class: 'gname' }, g.game_name),
+        !g.practice && h('span', { class: 'live' }, 'LIVE')),
       g.practice ? h('div', { class: 'practice' }, 'PRACTICE MODE') : h('div', { class: 'spacer' }),
       h('div', { class: 'tr' },
         h('button', { class: 'icon', onclick: doUndo, disabled: !canUndo || finished, 'aria-label': 'Undo' }, '↶'),
@@ -228,7 +253,8 @@
         h('button', { class: 'btn big', onclick: openRoster }, 'Add players'));
     } else {
       body = h('main', { class: 'panels', style: `--cols:${grid.cols};--rows:${grid.rows}` },
-        units.map((u, i) => panel(u, totals[u.key], cfg, winners, finished, i % grid.cols < grid.cols / 2 ? 'left' : 'right')));
+        units.map((u, i) => panel(u, totals[u.key], cfg, winners, finished, i % grid.cols < grid.cols / 2 ? 'left' : 'right', leaders.has(u.key))),
+        units.length === 2 && h('div', { class: 'vs' }, 'VS'));
     }
 
     const banner = !finished && auto.over && h('div', { class: 'banner' },
@@ -254,6 +280,7 @@
     S.view = 'game';
     fitSides();
     S.hooks.forEach((fn) => fn());
+    runFx();
   }
 
   /* One column of buttons wherever it fits (buttons stay >= 44px tall).
@@ -272,7 +299,7 @@
   }
   window.addEventListener('resize', () => { if (S.game) fitSides(); });
 
-  function panel(u, t, cfg, winners, finished, side) {
+  function panel(u, t, cfg, winners, finished, side, lead) {
     const counters = Object.entries(t.counters);
     const live = u.members.length > 0 && !finished;
 
@@ -284,14 +311,14 @@
         onclick: () => tap(u, b),
       }, b.label || sign(b.points))));
     const mid = h('div', { class: 'mid' },
-      h('div', { class: 'pname' }, u.name),
+      h('div', { class: 'pname' }, u.name, lead && h('span', { class: 'up' }, ' \u25B2')),
       S.game.teams > 0 && h('div', { class: 'members' }, u.members.length ? u.members.map((m) => m.name).join(', ') : 'no players yet'),
       h('div', { class: 'score' }, fmt(t.score)),
       h('div', { class: 'counters' },
         counters.map(([k, v]) => h('span', {}, k + ' ' + v)),
         t.attempts > 0 && counters.length > 0 ? h('span', {}, 'of ' + t.attempts) : null));
 
-    return h('section', { class: 'panel ' + side + (winners.has(u.key) ? ' winner' : '') },
+    return h('section', { class: 'panel ' + side + (winners.has(u.key) ? ' winner' : '') + (lead ? ' lead' : ''), 'data-key': u.key },
       side === 'left' ? [column, mid] : [mid, column]);
   }
 
@@ -387,6 +414,7 @@
         h('div', { class: 'stack' },
           act('Players' + (g.teams > 0 ? ' & teams' : ''), openRoster),
           act(g.practice ? 'Turn practice mode OFF' : 'Turn practice mode ON', doTogglePractice),
+          act(window.SKFX.enabled() ? 'Animations: ON (tap to turn off)' : 'Animations: OFF (tap to turn on)', () => { window.SKFX.setEnabled(!window.SKFX.enabled()); toast('Animations ' + (window.SKFX.enabled() ? 'on' : 'off')); }),
           act('Reset game', doReset),
           g.status === 'playing' && act('Finish game', () => doFinish(true)),
           act('Leave game', () => leaveGame()),
@@ -446,7 +474,7 @@
       h('div', { class: 'addrow' }, input, datalist, h('button', { class: 'btn', onclick: add }, 'Add')),
       S.game.teams > 0 && h('p', { class: 'muted' }, 'Pick each person’s team. Scores are kept per team.'),
       h('div', { class: 'mrow' }, h('button', { class: 'btn', onclick: close }, 'Done'))),
-    { onClose: () => { S.hooks = S.hooks.filter((f) => f !== draw); } });
+    { onClose: () => { S.hooks = S.hooks.filter((f) => f !== draw); if (S.game) renderGame(); } });
     S.hooks.push(draw);
     draw();
     return m;

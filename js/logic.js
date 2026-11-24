@@ -202,7 +202,7 @@
   }
 
   const api = {
-    DEFAULT_CONFIG, normalizeConfig, getUnits, foldEvents, evaluate, buildResult,
+    DEFAULT_CONFIG, normalizeConfig, getUnits, eventKey, foldEvents, evaluate, buildResult,
     undoState, gameKey, gameOptions, playerStats, headToHead, round,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
