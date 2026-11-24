@@ -1,0 +1,25 @@
+name: Keep Supabase awake
+
+# Free Supabase projects pause after about a week with no activity.
+# This pings the project twice a week so that doesn't happen.
+# Uses only the public (publishable) key, the same one the web app uses.
+
+on:
+  schedule:
+    - cron: '17 9 * * 1,4'   # Mondays and Thursdays, 09:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the database
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 10 \
+            -X POST "https://ipxnzukiysxonyaycwse.supabase.co/rest/v1/rpc/sk_pin_is_set" \
+            -H "apikey: sb_publishable_2f5vNT735D8FHVQPky5NEQ_L9KdAziB" \
+            -H "Authorization: Bearer sb_publishable_2f5vNT735D8FHVQPky5NEQ_L9KdAziB" \
+            -H "Content-Type: application/json" -d '{}'
+          echo
