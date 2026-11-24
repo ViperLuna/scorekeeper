@@ -228,7 +228,7 @@
         h('button', { class: 'btn big', onclick: openRoster }, 'Add players'));
     } else {
       body = h('main', { class: 'panels', style: `--cols:${grid.cols};--rows:${grid.rows}` },
-        units.map((u) => panel(u, totals[u.key], cfg, winners, finished)));
+        units.map((u, i) => panel(u, totals[u.key], cfg, winners, finished, i % grid.cols < grid.cols / 2 ? 'left' : 'right')));
     }
 
     const banner = !finished && auto.over && h('div', { class: 'banner' },
@@ -255,36 +255,27 @@
     S.hooks.forEach((fn) => fn());
   }
 
-  function panel(u, t, cfg, winners, finished) {
+  function panel(u, t, cfg, winners, finished, side) {
     const counters = Object.entries(t.counters);
     const live = u.members.length > 0 && !finished;
 
-    // Negative buttons on the left, the rest on the right. If that leaves one
-    // side empty, split the list in half so neither side is crowded.
-    let left = cfg.buttons.filter((b) => b.points < 0);
-    let right = cfg.buttons.filter((b) => b.points >= 0);
-    if (!left.length || !right.length) {
-      const all = cfg.buttons;
-      const mid = Math.ceil(all.length / 2);
-      left = all.slice(0, mid);
-      right = all.slice(mid);
-    }
-    const column = (list, cls) => h('div', { class: 'side ' + cls },
-      list.map((b) => h('button', {
+    // One column of buttons on the outer edge of the panel: left-hand panels put
+    // it on the far left, right-hand panels on the far right.
+    const column = h('div', { class: 'side' },
+      cfg.buttons.map((b) => h('button', {
         class: 'sbtn', disabled: !live,
         onclick: () => tap(u, b),
       }, b.label || sign(b.points))));
+    const mid = h('div', { class: 'mid' },
+      h('div', { class: 'pname' }, u.name),
+      S.game.teams > 0 && h('div', { class: 'members' }, u.members.length ? u.members.map((m) => m.name).join(', ') : 'no players yet'),
+      h('div', { class: 'score' }, fmt(t.score)),
+      h('div', { class: 'counters' },
+        counters.map(([k, v]) => h('span', {}, k + ' ' + v)),
+        t.attempts > 0 && counters.length > 0 ? h('span', {}, 'of ' + t.attempts) : null));
 
-    return h('section', { class: 'panel' + (winners.has(u.key) ? ' winner' : '') },
-      column(left, 'left'),
-      h('div', { class: 'mid' },
-        h('div', { class: 'pname' }, u.name),
-        S.game.teams > 0 && h('div', { class: 'members' }, u.members.length ? u.members.map((m) => m.name).join(', ') : 'no players yet'),
-        h('div', { class: 'score' }, fmt(t.score)),
-        h('div', { class: 'counters' },
-          counters.map(([k, v]) => h('span', {}, k + ' ' + v)),
-          t.attempts > 0 && counters.length > 0 ? h('span', {}, 'of ' + t.attempts) : null)),
-      column(right, 'right'));
+    return h('section', { class: 'panel ' + side + (winners.has(u.key) ? ' winner' : '') },
+      side === 'left' ? [column, mid] : [mid, column]);
   }
 
   function fsButton() {
